@@ -2,7 +2,7 @@
 	import { 
 		Plus, Search, Bookmark as BookmarkIcon, Trash2, ExternalLink, 
 		Settings, X, Edit2, Save, GripVertical, Database as DbIcon, 
-		Globe, Download, Upload, FileSpreadsheet, Layers, SortAsc, SortDesc
+		Globe, Download, Upload, FileSpreadsheet, Clock
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import Database from '@tauri-apps/plugin-sql';
@@ -16,7 +16,8 @@
 	let groups = $state<string[]>([]);
 	let appTitle = $state("MarkKeeper");
 	
-	// --- 2. UI STATE ---
+	// --- 2. CLOCK & UI STATE ---
+	let time = $state(new Date());
 	let searchQuery = $state("");
 	let isSettingsOpen = $state(false);
 	let isEditMode = $state(false);
@@ -33,6 +34,9 @@
 	let tempUrl = $state("");
 
 	onMount(async () => {
+		// Smooth Clock Interval
+		const timer = setInterval(() => { time = new Date(); }, 1000);
+
 		if (isTauri) {
 			try { 
 				db = await Database.load("sqlite:markkeeper.db");
@@ -42,6 +46,7 @@
 			} catch (e) { console.error("DB Init Failed", e); }
 		}
 		await loadData();
+		return () => clearInterval(timer);
 	});
 
 	async function loadData() {
@@ -63,7 +68,6 @@
 		localStorage.setItem('mk_title', appTitle);
 		localStorage.setItem('mk_groups', JSON.stringify(groups));
 		localStorage.setItem('mk_bookmarks', JSON.stringify(bookmarks));
-		// Tauri SQL sync can be expanded here
 	}
 
 	// --- 4. CORE ACTIONS ---
@@ -94,10 +98,11 @@
 
 	// --- 5. IMPORT / EXPORT ---
 	function exportJSON() {
-		const data = { appTitle, groups, bookmarks, version: "3.0" };
+		const data = { appTitle, groups, bookmarks };
 		const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
 		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a'); a.href = url; a.download = `markkeeper-backup.json`; a.click();
+		const a = document.createElement('a');
+		a.href = url; a.download = `markkeeper-backup.json`; a.click();
 	}
 
 	async function importCSV(e: Event) {
@@ -146,13 +151,21 @@
 			<div class="flex items-center gap-2 text-blue-600 font-bold uppercase tracking-tighter text-xs">
 				<BookmarkIcon size={16} /> <span>{appTitle}</span>
 			</div>
-			<div class="relative w-64">
+			<div class="relative w-48">
 				<Search class="absolute left-3 top-2 text-slate-400" size={12} />
-				<input bind:value={searchQuery} placeholder="Search bookmarks..." class="w-full pl-8 pr-4 py-1 text-[11px] bg-slate-100 border-none rounded-full outline-none focus:ring-1 focus:ring-blue-200" />
+				<input bind:value={searchQuery} placeholder="Search..." class="w-full pl-8 pr-4 py-1 text-[11px] bg-slate-100 border-none rounded-full outline-none focus:ring-1 focus:ring-blue-200" />
 			</div>
 		</div>
-		<div class="flex items-center gap-4">
-			<div class="flex items-center gap-2 px-2 py-0.5 {isTauri ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'} rounded-full border border-current opacity-80">
+
+		<div class="flex items-center gap-3 bg-slate-900 text-white px-5 py-1.5 rounded-full shadow-lg border border-slate-700">
+			<Clock size={14} class="text-blue-400 animate-pulse" />
+			<span class="font-mono text-[14px] font-black tracking-widest tabular-nums">
+				{time.getHours().toString().padStart(2, '0')}<span class="animate-blink">:</span>{time.getMinutes().toString().padStart(2, '0')}<span class="animate-blink">:</span>{time.getSeconds().toString().padStart(2, '0')}
+			</span>
+		</div>
+
+		<div class="flex items-center gap-4 flex-1 justify-end">
+			<div class="hidden md:flex items-center gap-2 px-2 py-0.5 {isTauri ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'} rounded-full border border-current opacity-80">
 				{#if isTauri}<DbIcon size={10} />{:else}<Globe size={10} />{/if}
 				<span class="text-[8px] font-black uppercase tracking-widest">{isTauri ? 'SQLite' : 'Web'}</span>
 			</div>
@@ -160,9 +173,10 @@
 		</div>
 	</header>
 
-	<main class="flex-1 p-3 overflow-y-auto flex flex-row flex-wrap gap-6 items-start content-start">
+	<main class="flex-1 p-4 overflow-y-auto grid gap-6 items-start content-start" 
+		  style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
 		{#each groups as group (group)}
-			<div class="flex-1 min-w-[300px] max-w-[400px] flex flex-col"
+			<div class="w-full flex flex-col"
 				 ondragover={(e) => e.preventDefault()}
 				 ondrop={() => handleDrop(group, bookmarks.filter(b => b.group === group).length)}>
 				
@@ -180,7 +194,7 @@
 						<div class="flex items-center gap-2 flex-1">
 							<h2 class="text-[12px] font-black text-slate-600 uppercase tracking-[0.1em]">{group}</h2>
 							{#if isEditMode}
-								<button onclick={() => { editingGroupId = group; groupRenameValue = group; }} class="text-slate-400 hover:text-blue-600"><Edit2 size={12}/></button>
+								<button onclick={() => { editingGroupId = group; groupRenameValue = group; }} class="text-slate-400 hover:text-blue-600"> <Edit2 size={12}/></button>
 							{/if}
 						</div>
 					{/if}
@@ -189,7 +203,7 @@
 				<div class="flex flex-col bg-white rounded-lg shadow-sm overflow-hidden ring-1 ring-slate-200/50">
 					{#if isEditMode}
 						<div class="bg-slate-50 p-1.5 flex gap-1 border-b border-slate-100">
-							<input bind:value={newUrl} placeholder="Add new URL..." class="flex-1 text-[10px] outline-none px-2 bg-white border rounded py-1" />
+							<input bind:value={newUrl} placeholder="Add URL..." class="flex-1 text-[10px] outline-none px-2 bg-white border rounded py-1" />
 							<button onclick={() => { 
 								if(!newUrl) return;
 								const id = crypto.randomUUID();
@@ -234,16 +248,16 @@
 	{#if isEditModalOpen}
 		<div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
 			<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick={() => isEditModalOpen = false}></div>
-			<div class="relative bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 flex flex-col gap-4 animate-in fade-in zoom-in duration-200">
+			<div class="relative bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 flex flex-col gap-4">
 				<div class="flex items-center justify-between border-b pb-3">
 					<h3 class="text-xs font-black uppercase text-slate-400">Edit Bookmark</h3>
 					<button onclick={() => isEditModalOpen = false}><X size={18}/></button>
 				</div>
 				<div class="space-y-3">
-					<input bind:value={tempTitle} class="w-full border p-2 rounded-lg text-xs outline-none" placeholder="Title" />
-					<input bind:value={tempUrl} class="w-full border p-2 rounded-lg text-xs outline-none" placeholder="URL" />
+					<input bind:value={tempTitle} class="w-full border p-2 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-500" placeholder="Title" />
+					<input bind:value={tempUrl} class="w-full border p-2 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-500" placeholder="URL" />
 				</div>
-				<button onclick={savePopupChanges} class="w-full bg-blue-600 text-white py-2 rounded-xl text-xs font-bold uppercase">Save Changes</button>
+				<button onclick={savePopupChanges} class="w-full bg-blue-600 text-white py-2 rounded-xl text-xs font-bold uppercase hover:bg-blue-700 transition-colors">Save Changes</button>
 			</div>
 		</div>
 	{/if}
@@ -262,11 +276,6 @@
 				</button>
 
 				<div class="space-y-6">
-					<div class="space-y-2">
-						<label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">App Branding</label>
-						<input bind:value={appTitle} onblur={syncData} class="w-full border p-2.5 rounded-lg text-xs bg-slate-50 outline-none" />
-					</div>
-
 					<div class="space-y-2 pt-4 border-t">
 						<label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Data Migration</label>
 						<div class="grid grid-cols-2 gap-2">
@@ -275,8 +284,8 @@
 								<Upload size={12}/> JSON <input type="file" accept=".json" class="hidden" />
 							</label>
 						</div>
-						<label class="flex items-center justify-center gap-2 w-full p-2.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[9px] font-black uppercase cursor-pointer hover:bg-blue-100">
-							<FileSpreadsheet size={12}/> Import CSV (Title,Url,Group)
+						<label class="flex items-center justify-center gap-2 w-full p-2.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[9px] font-black uppercase cursor-pointer hover:bg-blue-100 transition-colors mt-2">
+							<FileSpreadsheet size={12}/> Import CSV
 							<input type="file" accept=".csv" onchange={importCSV} class="hidden" />
 						</label>
 					</div>
@@ -291,7 +300,7 @@
 							{#each groups as g}
 								<div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-100 group/gitem">
 									<span class="text-[10px] font-bold">{g}</span>
-									<button onclick={() => deleteGroup(g)} class="text-slate-300 hover:text-red-500 opacity-0 group-hover/gitem:opacity-100"><Trash2 size={13}/></button>
+									<button onclick={() => deleteGroup(g)} class="text-slate-300 hover:text-red-500 opacity-0 group-hover/gitem:opacity-100 transition-opacity"><Trash2 size={13}/></button>
 								</div>
 							{/each}
 						</div>
@@ -307,4 +316,15 @@
 	::-webkit-scrollbar { width: 5px; }
 	::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 	.bookmark-row:hover:not(.cursor-default) { background-color: #f1f5f9; box-shadow: inset 3px 0 0 #3b82f6; }
+
+	@keyframes blink {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.3; }
+	}
+	.animate-blink {
+		display: inline-block;
+		animation: blink 1s step-end infinite;
+		color: #60a5fa;
+		margin: 0 1px;
+	}
 </style>
