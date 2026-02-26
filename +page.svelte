@@ -3,7 +3,8 @@
 		Plus, Search, Bookmark as BookmarkIcon, Trash2, Edit2, ExternalLink,
 		GripVertical, Settings, X, Moon, Sun, Check, Lock, Unlock,
 		FileSpreadsheet, Download, Upload, RefreshCw, AlertCircle, Save,
-		Tag, Image as ImageIcon, Clock, Copy, CopyPlus, Filter, LayoutList, List, EyeOff, SortAsc, SortDesc
+		Tag, Image as ImageIcon, Clock, Copy, CopyPlus, Filter, LayoutList, List, EyeOff, SortAsc, SortDesc,
+		Database, Wifi, WifiOff, ChevronRight
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
@@ -20,6 +21,7 @@
 	let appTitle = $state("Bookmark");
     let syncStatus = $state<"loading" | "synced" | "offline">("loading");
     let time = $state(new Date());
+    let collapsedGroups = $state<Record<string, boolean>>({});
 
 	// UI State
 	let searchQuery = $state("");
@@ -70,17 +72,21 @@
 
 	// --- 3. DATA & IMPORTS ---
 	async function loadData() {
+        syncStatus = "loading";
         try {
             const res = await fetch(API_URL);
+            if (!res.ok) throw new Error();
             const data = await res.json();
             bookmarks = (data.bookmarks || []).sort((a: Bookmark, b: Bookmark) => a.position - b.position);
             groups = data.groups || ["General"];
             groupSortDirections = data.sorts || {};
+            collapsedGroups = data.collapsed || {};
             syncStatus = "synced";
         } catch (e) {
             syncStatus = "offline";
 			groups = JSON.parse(localStorage.getItem('mk_groups') || '["General"]');
             groupSortDirections = JSON.parse(localStorage.getItem('mk_sorts') || '{}');
+            collapsedGroups = JSON.parse(localStorage.getItem('mk_collapsed') || '{}');
 			bookmarks = JSON.parse(localStorage.getItem('mk_bookmarks') || '[]').sort((a: any, b: any) => a.position - b.position);
         }
 	}
@@ -89,14 +95,15 @@
 		localStorage.setItem('mk_groups', JSON.stringify(groups));
 		localStorage.setItem('mk_bookmarks', JSON.stringify(bookmarks));
         localStorage.setItem('mk_sorts', JSON.stringify(groupSortDirections));
+        localStorage.setItem('mk_collapsed', JSON.stringify(collapsedGroups));
         localStorage.setItem('mk_accent', accentColor);
         try {
-            await fetch(API_URL, {
+            const res = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bookmarks, groups, sorts: groupSortDirections, appTitle })
+                body: JSON.stringify({ bookmarks, groups, sorts: groupSortDirections, collapsed: collapsedGroups, appTitle })
             });
-            syncStatus = "synced";
+            syncStatus = res.ok ? "synced" : "offline";
         } catch (e) { syncStatus = "offline"; }
 	}
 
@@ -110,6 +117,7 @@
                 if(d.bookmarks) bookmarks = d.bookmarks;
                 if(d.groups) groups = d.groups;
                 if(d.sorts) groupSortDirections = d.sorts;
+                if(d.collapsed) collapsedGroups = d.collapsed;
                 syncData();
             } catch (err) { alert("Invalid JSON file"); }
         };
@@ -140,6 +148,11 @@
     }
 
 	// --- 4. CORE LOGIC ---
+    function toggleCollapse(groupName: string) {
+        collapsedGroups[groupName] = !collapsedGroups[groupName];
+        syncData(); // Persist the collapse state
+    }
+
     function toggleSort(groupName: string) {
         const current = groupSortDirections[groupName] || 'none';
         groupSortDirections[groupName] = current === 'none' ? 'asc' : current === 'asc' ? 'desc' : 'none';
@@ -216,6 +229,15 @@
 			<div class="flex items-center gap-2 font-normal uppercase tracking-tighter text-sm" style="color: var(--brand)">
 				<BookmarkIcon size={20} fill="currentColor" fill-opacity="0.2" /> <span class="font-bold">{appTitle}</span>
 			</div>
+            
+            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all
+                {syncStatus === 'synced' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20' : 
+                 syncStatus === 'loading' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20' : 
+                 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:border-red-500/20'}">
+                <Database size={10} />
+                <span>{syncStatus}</span>
+            </div>
+
             <button onclick={() => isEditMode = !isEditMode} class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all {isEditMode ? 'bg-amber-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}">
                 {#if isEditMode}<Unlock size={14}/> Unlock{:else}<Lock size={14}/> Lock{/if}
             </button>
@@ -258,13 +280,17 @@
 
 	<main class="flex-1 p-6 overflow-y-auto grid gap-8 items-start content-start" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
 		{#each groups as group}
-			<section class="flex flex-col min-h-[100px]" ondragover={(e) => e.preventDefault()} ondrop={() => handleDrop(group, getGroupBookmarks(group).length)}>
+			<section class="flex flex-col min-h-[40px]" ondragover={(e) => e.preventDefault()} ondrop={() => handleDrop(group, getGroupBookmarks(group).length)}>
 				<div class="flex items-center justify-between mb-3 px-1">
                     <div class="flex items-center gap-3">
                         {#if editingGroupId === group}
                             <input bind:value={groupRenameValue} class="bg-transparent border-b border-blue-500 outline-none text-xs font-bold uppercase" autofocus onblur={() => { groups = groups.map(g => g === group ? groupRenameValue : g); bookmarks = bookmarks.map(b => b.group === group ? {...b, group: groupRenameValue} : b); editingGroupId = null; syncData(); }} />
                         {:else}
-                            <h2 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{group}</h2>
+                            <button onclick={() => toggleCollapse(group)} class="flex items-center gap-2 group/title">
+                                <ChevronRight size={12} class="text-slate-400 transition-transform duration-200 {collapsedGroups[group] ? '' : 'rotate-90'}" />
+                                <h2 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover/title:text-slate-600 transition-colors">{group}</h2>
+                            </button>
+                            
                             <button onclick={() => toggleSort(group)} class="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg">
                                 {#if groupSortDirections[group] === 'asc'} <SortAsc size={14} class="text-blue-500" />
                                 {:else if groupSortDirections[group] === 'desc'} <SortDesc size={14} class="text-blue-500" />
@@ -277,7 +303,7 @@
                     </div>
 				</div>
 
-				<div class="bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 overflow-hidden divide-y dark:divide-slate-800">
+				<div class="bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 overflow-hidden divide-y dark:divide-slate-800 transition-all duration-300 {collapsedGroups[group] ? 'max-h-0 opacity-0 invisible' : 'max-h-[2000px] opacity-100 visible'}">
                     {#if isEditMode}
 						<div class="p-3 bg-slate-50 dark:bg-slate-800/50 flex gap-2">
 							<input bind:value={columnInputs[group]} placeholder="Quick add URL..." class="flex-1 text-sm p-3 bg-white dark:bg-slate-900 rounded-xl border dark:border-slate-700 outline-none" onkeydown={(e) => e.key === 'Enter' && addBookmarkToGroup(group)} />
@@ -351,7 +377,7 @@
 
                 <div class="pt-4 border-t dark:border-slate-800 space-y-2">
                     <button onclick={() => {
-                        const blob = new Blob([JSON.stringify({ groups, bookmarks, sorts: groupSortDirections, appTitle }, null, 2)], { type: 'application/json' });
+                        const blob = new Blob([JSON.stringify({ groups, bookmarks, sorts: groupSortDirections, collapsed: collapsedGroups, appTitle }, null, 2)], { type: 'application/json' });
                         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'backup.json'; a.click();
                     }} class="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-xs hover:bg-slate-100 dark:hover:bg-slate-700 font-medium transition-colors">
                         <span>Export Backup (JSON)</span> <Download size={16}/>
