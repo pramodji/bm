@@ -1,1 +1,21 @@
 %windir%\system32\inetsrv\appcmd.exe unlock config -section:system.webServer/handlers
+
+
+
+@echo off
+setlocal
+
+REM === Path to your offline .tgz files ===
+set PKGDIR=C:\offline-packages
+
+REM === Force npm to avoid registry.npmjs.org ===
+set NPM_REG=file://%PKGDIR%
+
+echo Installing Express offline...
+npm install "%PKGDIR%\express-*.tgz" --registry=%NPM_REG% --prefer-offline --no-audit --no-fund
+
+echo Installing CORS offline...
+npm install "%PKGDIR%\cors-*.tgz" --registry=%NPM_REG% --prefer-offline --no-audit --no-fund
+
+echo Done installing offline packages.
+pause
