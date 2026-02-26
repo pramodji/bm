@@ -28,16 +28,16 @@
 	let isEditMode = $state(false);
 	let isDarkMode = $state(false);
     
-    // DEFAULT OVERRIDES: Set to hidden/compact on launch
+    // Default visibility settings
     let showTags = $state(false); 
     let compactMode = $state(true); 
 
 	let accentColor = $state("blue"); 
-	let editingGroupId = $state<string | null>(null);
+	let editingGroupId = $state<null | string>(null);
 	let groupRenameValue = $state("");
 	let newUrl = $state("");
 	let newGroupName = $state("");
-	let draggedId = $state<string | null>(null);
+	let draggedId = $state<null | string>(null);
     let groupSortStates = $state<Record<string, boolean>>({});
 
 	// --- 3. CONTEXT MENU & MODAL STATE ---
@@ -103,6 +103,7 @@
         } catch (e) { syncStatus = "offline"; }
 	}
 
+    // --- FEATURE LOGIC ---
     function toggleSort(groupName: string) {
         groupSortStates[groupName] = !groupSortStates[groupName];
     }
@@ -235,7 +236,7 @@
 				<div class="relative w-80 flex items-center gap-1">
 					<div class="relative flex-1">
                         <Search class="absolute left-3 top-2.5 text-slate-400" size={14} />
-                        <input bind:value={searchQuery} placeholder="Search..." class="w-full pl-10 pr-4 py-2 text-xs bg-slate-100 dark:bg-slate-800 border-none rounded-xl outline-none font-light" />
+                        <input bind:value={searchQuery} placeholder="Search..." class="w-full pl-10 pr-4 py-2 text-sm bg-slate-100 dark:bg-slate-800 border-none rounded-xl outline-none font-light" />
                     </div>
                     <button onclick={() => showTags = !showTags} class="p-2 text-slate-400 hover:text-slate-600" title="Toggle Tag Bar">
                         {#if showTags}<EyeOff size={16}/>{:else}<Filter size={16}/>{/if}
@@ -278,7 +279,7 @@
 					<div class="flex items-center justify-between mb-2 px-1">
 						{#if editingGroupId === group}
 							<div class="flex gap-1 w-full">
-								<input bind:value={groupRenameValue} class="bg-transparent border-b border-blue-500 outline-none text-sm font-bold uppercase w-full" autofocus />
+                                <input bind:value={groupRenameValue} class="bg-transparent border-b border-blue-500 outline-none text-base font-bold uppercase w-full" autofocus />
 								<button onclick={() => { groups = groups.map(g => g === group ? groupRenameValue : g); bookmarks = bookmarks.map(b => b.group === group ? {...b, group: groupRenameValue} : b); editingGroupId = null; syncData(); }} class="text-green-500"><Check size={14}/></button>
 							</div>
 						{:else}
@@ -295,7 +296,7 @@
 					<div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 overflow-hidden divide-y dark:divide-slate-800" ondragover={(e) => e.preventDefault()} ondrop={() => handleDrop(group, getGroupBookmarks(group).length)}>
 						{#if isEditMode}
 							<div class="p-2 bg-slate-50 dark:bg-slate-800/50 flex gap-1">
-								<input bind:value={newUrl} placeholder="Add URL..." class="flex-1 text-[10px] p-2 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 outline-none font-light" />
+                                <input bind:value={newUrl} placeholder="Add URL..." class="flex-1 text-sm p-2 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 outline-none font-light" />
 								<button onclick={() => { if(!newUrl) return; bookmarks = [...bookmarks, { id: crypto.randomUUID(), title: newUrl.split('/')[2] || newUrl, url: newUrl.startsWith('http') ? newUrl : `https://${newUrl}`, group, position: bookmarks.length, tags: [], notes: "", icon: "" }]; newUrl = ""; syncData(); }} class="text-white px-3 rounded-lg" style="background-color: var(--brand)"><Plus size={14}/></button>
 							</div>
 						{/if}
@@ -342,12 +343,40 @@
 
         {#if contextMenu.show}
             <div class="fixed z-[200] bg-white dark:bg-slate-900 shadow-xl rounded-xl border dark:border-slate-800 py-1 w-44 text-[11px]" style="top: {contextMenu.y}px; left: {contextMenu.x}px;" onclick={(e) => e.stopPropagation()}>
-                <button onclick={() => openEditModal(contextMenu.target!)} class="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2"><Edit2 size={12} class="text-blue-500 opacity-70"/> Edit</button>
-                <button onclick={() => duplicateBookmark(contextMenu.target!)} class="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2"><CopyPlus size={12} class="text-purple-500 opacity-70"/> Duplicate</button>
+                <button onclick={() => openEditModal(contextMenu.target!)} class="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 font-light"><Edit2 size={12} class="text-blue-500 opacity-70"/> Edit</button>
+                <button onclick={() => duplicateBookmark(contextMenu.target!)} class="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 font-light"><CopyPlus size={12} class="text-purple-500 opacity-70"/> Duplicate</button>
                 <div class="h-px bg-slate-100 dark:bg-slate-800 my-1 mx-2"></div>
-                <button onclick={() => deleteBookmark(contextMenu.target!.id)} class="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 flex items-center gap-2"><Trash2 size={12}/> Delete</button>
+                <button onclick={() => deleteBookmark(contextMenu.target!.id)} class="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 flex items-center gap-2 font-light"><Trash2 size={12}/> Delete</button>
             </div>
         {/if}
+
+        {#if isEditModalOpen}
+			<div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+				<div class="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-2xl border dark:border-slate-800">
+					<div class="flex justify-between border-b dark:border-slate-800 pb-3">
+						<h3 class="text-[10px] font-normal uppercase text-slate-400 tracking-widest">Edit Bookmark</h3>
+						<button onclick={() => isEditModalOpen = false}><X size={20}/></button>
+					</div>
+					<div class="space-y-3">
+                        <input bind:value={tempTitle} placeholder="Title" class="w-full bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl text-base outline-none font-light" />
+						<input bind:value={tempUrl} placeholder="URL" class="w-full bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl text-base outline-none font-light" />
+                        <div class="space-y-1">
+							<label class="text-[9px] font-normal uppercase text-slate-400 flex gap-1 tracking-widest"><Tag size={10}/> Tags (comma separated)</label>
+							<input bind:value={tempTags} placeholder="work, fun..." class="w-full bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl text-base outline-none font-light" />
+						</div>
+                        <div class="space-y-1">
+							<label class="text-[9px] font-normal uppercase text-slate-400 tracking-widest">Notes</label>
+							<textarea bind:value={tempNotes} class="w-full bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl text-base h-24 outline-none resize-none font-light"></textarea>
+						</div>
+						<div class="space-y-1">
+							<label class="text-[9px] font-normal uppercase text-slate-400 flex gap-1 tracking-widest"><ImageIcon size={10}/> Custom Icon (SVG or URL)</label>
+							<textarea bind:value={tempIcon} placeholder="<svg...> or https://..." class="w-full bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl text-sm h-24 outline-none font-mono"></textarea>
+						</div>
+					</div>
+					<button onclick={savePopupChanges} class="w-full py-3 rounded-xl font-normal text-white uppercase tracking-widest shadow-lg" style="background-color: var(--brand)">Save Changes</button>
+				</div>
+			</div>
+		{/if}
 
         {#if isSettingsOpen}
 			<div class="fixed inset-0 z-[100] flex justify-end">
@@ -372,7 +401,7 @@
                     <div class="space-y-4 pt-4 border-t dark:border-slate-800">
                         <label class="text-[10px] font-normal text-slate-400 uppercase tracking-widest">Groups</label>
                         <div class="flex gap-2">
-                            <input bind:value={newGroupName} placeholder="New..." class="flex-1 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg text-xs outline-none font-light" />
+                            <input bind:value={newGroupName} placeholder="New..." class="flex-1 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg text-base outline-none font-light" />
                             <button onclick={() => { if(newGroupName) { groups=[...groups, newGroupName]; newGroupName=""; syncData(); } }} class="text-white p-2 rounded-lg" style="background-color: var(--brand)"><Plus size={18}/></button>
                         </div>
                         <div class="space-y-1">
