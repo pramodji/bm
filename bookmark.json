@@ -1,0 +1,391 @@
+{
+  "bookmarks": [
+    {
+      "id": "9d21282e-9368-4498-a2a3-36776438195d",
+      "title": "Advent Data Exchange",
+      "url": "https://transport.dataexchange.com/dashboard",
+      "group": "Applications",
+      "position": 0,
+      "tags": [],
+      "notes": "",
+      "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" x=\"0px\" y=\"0px\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n<path fill=\"#eb6773\" d=\"M37,6c0-1.105-0.895-2-2-2H13c-1.105,0-2,0.895-2,2v4h26V6z\"></path><path fill=\"#b31523\" d=\"M11,41.72c0,0.996,1.092,1.606,1.94,1.084L24,35.998l11.06,6.806C35.908,43.326,37,42.716,37,41.72\tV30H11V41.72z\"></path><rect width=\"26\" height=\"12\" x=\"11\" y=\"18\" fill=\"#cf1928\"></rect><rect width=\"26\" height=\"8\" x=\"11\" y=\"10\" fill=\"#d9414f\"></rect>\n</svg>"
+    },
+    {
+      "id": "5c0df059-56be-4fee-9346-75a76d4c1931",
+      "title": "APX",
+      "url": "https://pdapx.kaspick.com/apx",
+      "group": "Applications",
+      "position": 1,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "96b40bdf-15e7-45fb-bc42-6c1ed8b429d1",
+      "title": "APX NextGen",
+      "url": "https://pdapx.kaspick.com/apxui",
+      "group": "Applications",
+      "position": 2,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "b0391ff2-594f-4aa0-845e-8d22894a8ae2",
+      "title": "Asset Valuation Utility",
+      "url": "https://pdassetval.kaspick.com:4536/",
+      "group": "Applications",
+      "position": 3,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "41012685-0758-4c9d-8805-72d3853c31bb",
+      "title": "DocuSign Azure",
+      "url": "https://launcher.myapps.microsoft.com/api/signin/4fb6e1ea-ade4-4a0c-bb14-0876bd5a0051?tenantId=67080e55-9c90-409b-9421-7fab7df8331b",
+      "group": "Applications",
+      "position": 4,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "bb3f16ce-ee16-414a-b3c5-89518d32c03d",
+      "title": "EzpayWeb",
+      "url": "http://rwsprodapp02/ezpm/admin/frame.asp",
+      "group": "Applications",
+      "position": 5,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "b53aaf84-6f1a-49ea-91c8-95e267e86a59",
+      "title": "FilExpress",
+      "url": "https://pdassetval.kaspick.com:4595/",
+      "group": "Applications",
+      "position": 6,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "27b26236-b35c-42a6-ae8b-cdf90b4ac4d9",
+      "title": "FIMS",
+      "url": "https://app.blackbaud.com/hostnet/?envid=p-Ss00sI4c-Umeuek3s4WMWQ&svcid=fimshostnet",
+      "group": "Applications",
+      "position": 7,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "dba53fe7-8f57-4eac-bb03-0a32bdfed05d",
+      "title": "Giftwrap",
+      "url": "https://pdgiftwrap.kaspick.com/Giftwrap/login.aspx",
+      "group": "Applications",
+      "position": 8,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "2c36b5fc-db9b-4191-9b5c-517e89224827",
+      "title": "Giftwrap - Test",
+      "url": "https://s2giftwrap.kaspick.com/giftwrap/",
+      "group": "Applications",
+      "position": 9,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "6fe8aa93-8deb-4a92-8ae9-b4678920b623",
+      "title": "Innotrust",
+      "url": "https://auth.tiaa.org/idp/startSSO.ping?PartnerSpId=https%3A%2F%2Finnoprodsso.ssnc.cloud%2Fsp%2Fkco%2Fkco",
+      "group": "Applications",
+      "position": 10,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "234eeda9-9bb1-4752-9159-265e18898653",
+      "title": "Innotrust DEV",
+      "url": "https://devkco.bp.tiaa-cref.org/innotrust2/KCO/dashboard/admin?r=838950",
+      "group": "Applications",
+      "position": 11,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "440ecc1c-c686-441a-9ba0-6af6125428b3",
+      "title": "Innotrust Stage1",
+      "url": "https://public-auth-at.test.tiaa.org/idp/startSSO.ping?PartnerSpId=https%3A%2F%2Ftestsso.innovestsystems.com%2Fsp%2Fstageweb1%2Fkco",
+      "group": "Applications",
+      "position": 12,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "f3f153f5-7ca2-42f5-a6f2-380f4e9645bc",
+      "title": "Innotrust Test KCO2",
+      "url": "https://origin-auth-st2.test.tiaa.org/idp/startSSO.ping?PartnerSpId=https%3A%2F%2Finnotestsso.ssnc.cloud%2Fsp%2Finnotestweb1%2Fkco",
+      "group": "Applications",
+      "position": 13,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "e4cc6e23-8524-4fe4-b8ff-3b5c41ca50d2",
+      "title": "Innotrust Testweb4",
+      "url": "https://testweb4.innovestsystems.com/KCO/",
+      "group": "Applications",
+      "position": 14,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "9d55aa30-d953-4a4e-99f3-d9d7ee3c87da",
+      "title": "Kaspick Connect Internal",
+      "url": "https://connect-internal.kaspick.com:8443/",
+      "group": "Applications",
+      "position": 15,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "da18a309-32c4-4b89-9873-8dbabaf11d58",
+      "title": "Kaspick Sharefile - Azure",
+      "url": "https://launcher.myapps.microsoft.com/api/signin/525749a9-ac9e-4cfe-b9e6-42d70034d8d1?tenantId=67080e55-9c90-409b-9421-7fab7df8331b",
+      "group": "Applications",
+      "position": 16,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "13a3a7a4-890d-472f-94f8-6b30ed8b7121",
+      "title": "NeoPost",
+      "url": "http://rwsprodapp04.kaspick.com:8080/local/#/login",
+      "group": "Applications",
+      "position": 17,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "2b70c3d2-fa73-4799-8b7e-ab9890aa9149",
+      "title": "NeoPost - TEST",
+      "url": "http://rwstestapp05:690/local/#/login",
+      "group": "Applications",
+      "position": 18,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "94ce7bbc-0400-4c8e-b159-c3f50d09507c",
+      "title": "OneSource",
+      "url": "https://launcher.myapps.microsoft.com/api/signin/20845edf-89fb-4862-8807-3fa576be7f27?tenantId=67080e55-9c90-409b-9421-7fab7df8331b",
+      "group": "Applications",
+      "position": 19,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "48d1180f-cb00-48cc-ab0e-3d611d73632e",
+      "title": "PGM Anywhere - Harvard",
+      "url": "https://launcher.myapps.microsoft.com/api/signin/caff4996-47c1-4aa6-b38d-d628483db029?tenantId=67080e55-9c90-409b-9421-7fab7df8331b",
+      "group": "Applications",
+      "position": 20,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "01870c88-0b6c-4615-b02b-1ca74455ac12",
+      "title": "PGM Anywhere - Kaspick",
+      "url": "https://launcher.myapps.microsoft.com/api/signin/e8a8fe0a-597a-460d-93b4-2cf6bbaa2178?tenantId=67080e55-9c90-409b-9421-7fab7df8331b",
+      "group": "Applications",
+      "position": 21,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "ceab10ba-fb9b-43da-b27c-6a3b2db50f24",
+      "title": "PGM Anywhere - Stage",
+      "url": "https://pgm.pgcalc.com/PGMAnywhere_Stage/",
+      "group": "Applications",
+      "position": 22,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "da0b1631-e1d3-4a20-be28-f2ff96e6cb80",
+      "title": "PGM Anywhere - Stage SSO",
+      "url": "https://origin-auth-st2.test.tiaa.org/idp/startSSO.ping?PartnerSpId=https%3A%2F%2Fpgm.pgcalc.com%2FPGMAnywhere_Stage",
+      "group": "Applications",
+      "position": 23,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "9eaea139-f396-46e0-bd0a-0bb104cc9b6b",
+      "title": "PGM Anywhere - TEST SSO",
+      "url": "https://origin-auth-st2.test.tiaa.org/idp/startSSO.ping?PartnerSpId=https%3A%2F%2Fpgm.pgcalc.com%2FPGMAnywhere",
+      "group": "Applications",
+      "position": 24,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "a924f093-2ec0-491f-9244-3ff15908cb1b",
+      "title": "Process Maker - Kaspick",
+      "url": "https://kaspick.processmaker.com/sysworkflow/en/kaspick/login/login",
+      "group": "Applications",
+      "position": 25,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "f3daaf28-63e0-40d1-abff-bbf78bc45df8",
+      "title": "Process Maker - Kaspick TEST",
+      "url": "https://sandbox-kaspick.processmaker.com/sysworkflow/en/kaspick/setup/main",
+      "group": "Applications",
+      "position": 26,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "4b4622aa-6919-45d5-8e7b-d1f82eee7d1e",
+      "title": "QRM",
+      "url": "http://rwsprodredhat01.kaspick.com:1337/login",
+      "group": "Applications",
+      "position": 27,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "89856a75-bcd1-4525-b7fc-b46ef5f25dcd",
+      "title": "Saleforce SandBox SSO",
+      "url": "https://origin-auth-st2.test.tiaa.org/idp/startSSO.ping?PartnerSpId=https%3A%2F%2Ftiaakaspick--leighann.my.salesforce.com",
+      "group": "Applications",
+      "position": 28,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "d1e2af2a-b3d9-43c1-961c-406a6bf67ef6",
+      "title": "Sales force Login",
+      "url": "https://tiaakaspick.lightning.force.com/",
+      "group": "Applications",
+      "position": 29,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "6da36770-30a3-4990-a09a-9009a8a48d54",
+      "title": "Salesforce - Azure",
+      "url": "https://launcher.myapps.microsoft.com/api/signin/c1152abe-1d2a-4c5f-b68c-b33b60154072?tenantId=67080e55-9c90-409b-9421-7fab7df8331b",
+      "group": "Applications",
+      "position": 30,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "d2ad352d-025c-49f9-a0c1-9b0f19a9a958",
+      "title": "Salesforce Sandbox",
+      "url": "https://cs202.salesforce.com/",
+      "group": "Applications",
+      "position": 31,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "d270502c-be8e-450f-9902-2740f004cae2",
+      "title": "Salesforce UAT",
+      "url": "https://tiaakaspick--partial.sandbox.my.salesforce.com/",
+      "group": "Applications",
+      "position": 32,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "900b5ac6-943b-4b8c-8a53-dcabe6729cca",
+      "title": "Schwab Institutional",
+      "url": "https://si2.schwabinstitutional.com/SI2/Home/Default.aspx",
+      "group": "Applications",
+      "position": 33,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "24da4f56-593e-40b1-983a-a467e095d30c",
+      "title": "Schwab SSO",
+      "url": "https://launcher.myapps.microsoft.com/api/signin/e2ed45aa-30c5-4f44-8522-ede27592df93?tenantId=67080e55-9c90-409b-9421-7fab7df8331b",
+      "group": "Applications",
+      "position": 34,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "93f22fbc-4fcb-4db8-a03d-e486f239985b",
+      "title": "google.com",
+      "url": "https://google.com",
+      "group": "Systems",
+      "position": 35,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "26370bc7-cde5-4837-849d-fdf7d6af0d3f",
+      "title": "microsoft.com",
+      "url": "https://microsoft.com",
+      "group": "Personal",
+      "position": 36,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    },
+    {
+      "id": "8d9ebc3f-91df-4fe2-a771-1472ec318ee8",
+      "title": "yahoo.com",
+      "url": "https://yahoo.com",
+      "group": "Systems",
+      "position": 37,
+      "tags": [],
+      "notes": "",
+      "icon": ""
+    }
+  ],
+  "groups": [
+    "Applications",
+    "Systems",
+    "Personal",
+    "Test"
+  ],
+  "appTitle": "MarkKeeper"
+}
