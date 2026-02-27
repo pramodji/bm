@@ -284,13 +284,15 @@
     function addBookmarkToGroup(group: string) {
         const url = columnInputs[group];
         if (!url) return;
-        bookmarks = [...bookmarks, { 
+        const newBookmark = { 
             id: crypto.randomUUID(), title: url.split('/')[2] || url, 
             url: url.startsWith('http') ? url : `https://${url}`, 
             group, position: bookmarks.length, tags: [], notes: "", icon: "" 
-        }];
+        };
+        bookmarks = [...bookmarks, newBookmark];
         columnInputs[group] = "";
         syncData();
+        openEditModal(newBookmark);
     }
 
     function renameGroup(oldName: string, newName: string) {
