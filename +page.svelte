@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { 
-		Plus, Search, Bookmark as BookmarkIcon, Trash2, Edit2, ExternalLink,
-		GripVertical, Settings, X, Moon, Sun, Check, Lock, Unlock,
-		FileSpreadsheet, Download, Upload, RefreshCw, AlertCircle, Save,
-		Tag, Image as ImageIcon, Clock, Copy, CopyPlus, Filter, LayoutList, List, EyeOff, SortAsc, SortDesc,
-		Database, Wifi, WifiOff, ChevronRight
+		Plus, Search, Bookmark as BookmarkIcon, Trash2, Edit2, 
+		GripVertical, Settings, X, Moon, Sun, Lock, Unlock,
+		FileSpreadsheet, Download, Upload, LayoutList, List, Filter, EyeOff,
+		SortAsc, SortDesc, Database, ChevronRight, Code, Copy, CopyPlus
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
@@ -18,12 +17,20 @@
 
 	let bookmarks = $state<Bookmark[]>([]);
 	let groups = $state<string[]>([]);
-	let appTitle = $state("Bookmark");
+    
+    // NEW: Logged in Username State
+    let username = $state("User"); 
+	let appTitle = $derived(`${username}'s Dashboard`); // Dynamically updates title
+
     let syncStatus = $state<"loading" | "synced" | "offline">("loading");
     let time = $state(new Date());
+    
+    // Persistent UI States
     let collapsedGroups = $state<Record<string, boolean>>({});
+    let groupWidgets = $state<Record<string, string>>({});
+    let groupSortDirections = $state<Record<string, 'none' | 'asc' | 'desc'>>({});
 
-	// UI State
+	// General UI State
 	let searchQuery = $state("");
 	let selectedTag = $state<string | null>(null);
 	let isSettingsOpen = $state(false);
@@ -35,11 +42,7 @@
 	let columnInputs = $state<Record<string, string>>({}); 
 	let draggedId = $state<null | string>(null);
     let newGroupName = $state("");
-
-    // Sorting & Group Editing
-    let groupSortDirections = $state<Record<string, 'none' | 'asc' | 'desc'>>({});
-    let editingGroupId = $state<string | null>(null);
-    let groupRenameValue = $state("");
+    let widgetEditTarget = $state<string | null>(null);
 
 	// Modals & Context
 	let isEditModalOpen = $state(false);
@@ -59,6 +62,10 @@
         const timer = setInterval(() => { time = new Date(); }, 1000);
 		isDarkMode = localStorage.getItem('mk_dark') === 'true';
 		accentColor = localStorage.getItem('mk_accent') || "blue";
+        // Attempt to load username from local storage if available
+        const savedUser = localStorage.getItem('mk_username');
+        if (savedUser) username = savedUser;
+
 		await loadData();
         window.addEventListener('click', () => { contextMenu.show = false; });
         return () => { clearInterval(timer); };
@@ -70,7 +77,7 @@
         else document.documentElement.classList.remove('dark');
     });
 
-	// --- 3. DATA & IMPORTS ---
+	// --- 3. DATA PERSISTENCE ---
 	async function loadData() {
         syncStatus = "loading";
         try {
@@ -81,12 +88,14 @@
             groups = data.groups || ["General"];
             groupSortDirections = data.sorts || {};
             collapsedGroups = data.collapsed || {};
+            groupWidgets = data.widgets || {};
             syncStatus = "synced";
         } catch (e) {
             syncStatus = "offline";
 			groups = JSON.parse(localStorage.getItem('mk_groups') || '["General"]');
             groupSortDirections = JSON.parse(localStorage.getItem('mk_sorts') || '{}');
             collapsedGroups = JSON.parse(localStorage.getItem('mk_collapsed') || '{}');
+            groupWidgets = JSON.parse(localStorage.getItem('mk_widgets') || '{}');
 			bookmarks = JSON.parse(localStorage.getItem('mk_bookmarks') || '[]').sort((a: any, b: any) => a.position - b.position);
         }
 	}
@@ -96,61 +105,23 @@
 		localStorage.setItem('mk_bookmarks', JSON.stringify(bookmarks));
         localStorage.setItem('mk_sorts', JSON.stringify(groupSortDirections));
         localStorage.setItem('mk_collapsed', JSON.stringify(collapsedGroups));
+        localStorage.setItem('mk_widgets', JSON.stringify(groupWidgets));
         localStorage.setItem('mk_accent', accentColor);
+        localStorage.setItem('mk_username', username);
         try {
             const res = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bookmarks, groups, sorts: groupSortDirections, collapsed: collapsedGroups, appTitle })
+                body: JSON.stringify({ bookmarks, groups, sorts: groupSortDirections, collapsed: collapsedGroups, widgets: groupWidgets, appTitle, username })
             });
             syncStatus = res.ok ? "synced" : "offline";
         } catch (e) { syncStatus = "offline"; }
 	}
 
-    function handleJSONImport(e: Event) {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            try {
-                const d = JSON.parse(ev.target?.result as string);
-                if(d.bookmarks) bookmarks = d.bookmarks;
-                if(d.groups) groups = d.groups;
-                if(d.sorts) groupSortDirections = d.sorts;
-                if(d.collapsed) collapsedGroups = d.collapsed;
-                syncData();
-            } catch (err) { alert("Invalid JSON file"); }
-        };
-        reader.readAsText(file);
-    }
-
-    function handleCSVImport(e: Event) {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const text = event.target?.result as string;
-            const rows = text.split('\n').slice(1);
-            const newBks: Bookmark[] = rows.filter(r => r.trim()).map(row => {
-                const [title, url, group, tags, notes] = row.split(',').map(s => s.trim());
-                return {
-                    id: crypto.randomUUID(), title: title || url,
-                    url: url.startsWith('http') ? url : `https://${url}`,
-                    group: group || "General", position: bookmarks.length,
-                    tags: tags ? tags.split(';') : [], notes: notes || ""
-                };
-            });
-            bookmarks = [...bookmarks, ...newBks];
-            groups = [...new Set([...groups, ...newBks.map(b => b.group)])];
-            syncData();
-        };
-        reader.readAsText(file);
-    }
-
 	// --- 4. CORE LOGIC ---
     function toggleCollapse(groupName: string) {
         collapsedGroups[groupName] = !collapsedGroups[groupName];
-        syncData(); // Persist the collapse state
+        syncData();
     }
 
     function toggleSort(groupName: string) {
@@ -164,10 +135,8 @@
         groupSortDirections[targetGroup] = 'none';
 		const movedItem = bookmarks.find(b => b.id === draggedId);
 		if (!movedItem) return;
-
 		let othersInGroup = bookmarks.filter(b => b.group === targetGroup && b.id !== draggedId).sort((a,b) => a.position - b.position);
         othersInGroup.splice(targetIndex, 0, { ...movedItem, group: targetGroup });
-        
         const rest = bookmarks.filter(b => b.group !== targetGroup && b.id !== draggedId);
         bookmarks = [...rest, ...othersInGroup].map((b, i) => ({...b, position: i}));
 		draggedId = null; syncData();
@@ -186,7 +155,6 @@
     }
 
 	// --- 5. DERIVED ---
-	let allUniqueTags = $derived(Array.from(new Set(bookmarks.flatMap(b => b.tags || []))).sort());
 	let filteredBookmarks = $derived(bookmarks.filter(b => {
 		const matchesSearch = b.title.toLowerCase().includes(searchQuery.toLowerCase()) || b.notes?.toLowerCase().includes(searchQuery.toLowerCase());
 		const matchesTag = !selectedTag || b.tags?.includes(selectedTag);
@@ -226,16 +194,14 @@
 	
 	<header class="h-14 bg-white dark:bg-slate-900 border-b dark:border-slate-800 flex items-center px-4 justify-between shrink-0 z-20 shadow-sm">
 		<div class="flex items-center gap-4 flex-1">
-			<div class="flex items-center gap-2 font-normal uppercase tracking-tighter text-sm" style="color: var(--brand)">
+			<div class="flex items-center gap-2 font-bold uppercase tracking-tighter text-sm" style="color: var(--brand)">
 				<BookmarkIcon size={20} fill="currentColor" fill-opacity="0.2" /> <span class="font-bold">{appTitle}</span>
 			</div>
             
             <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all
                 {syncStatus === 'synced' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20' : 
-                 syncStatus === 'loading' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20' : 
-                 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:border-red-500/20'}">
-                <Database size={10} />
-                <span>{syncStatus}</span>
+                 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20'}">
+                <Database size={10} /> <span>{syncStatus}</span>
             </div>
 
             <button onclick={() => isEditMode = !isEditMode} class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all {isEditMode ? 'bg-amber-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}">
@@ -249,56 +215,40 @@
                     <Search class="absolute left-4 top-3 text-slate-400" size={16} />
                     <input bind:value={searchQuery} placeholder="Search bookmarks..." class="w-full pl-12 pr-4 py-3 text-sm bg-slate-100 dark:bg-slate-800 border-none rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
-                <button onclick={() => showTags = !showTags} class="p-2.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
-                    {#if showTags}<EyeOff size={18}/>{:else}<Filter size={18}/>{/if}
-                </button>
-                <button onclick={() => compactMode = !compactMode} class="p-2.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
-                    {#if compactMode}<LayoutList size={18}/>{:else}<List size={18}/>{/if}
-                </button>
             </div>
         </div>
 
 		<div class="flex items-center gap-6 flex-1 justify-end">
-            <div class="text-xl font-mono font-medium text-slate-700 dark:text-slate-200 tabular-nums tracking-tight uppercase">
+            <div class="text-xl font-mono font-medium text-slate-700 dark:text-slate-200 tabular-nums uppercase">
                 {time.toLocaleTimeString([], { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
-            <button onclick={() => isDarkMode = !isDarkMode} class="p-2 text-slate-400 hover:text-slate-600 transition-transform active:scale-90">
+            <button onclick={() => isDarkMode = !isDarkMode} class="p-2 text-slate-400 hover:text-slate-600">
                 {#if isDarkMode}<Sun size={20}/>{:else}<Moon size={20}/>{/if}
             </button>
             <button onclick={() => isSettingsOpen = true} class="p-2 text-slate-400 hover:text-slate-600"><Settings size={20}/></button>
 		</div>
 	</header>
 
-	{#if showTags}
-		<div class="px-4 py-2.5 bg-white dark:bg-slate-900 border-b dark:border-slate-800 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
-			<button onclick={() => selectedTag = null} class="px-4 py-1.5 rounded-full text-[10px] uppercase tracking-wider font-bold {selectedTag === null ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}">All Items</button>
-			{#each allUniqueTags as tag}
-				<button onclick={() => selectedTag = (selectedTag === tag ? null : tag)} class="px-4 py-1.5 rounded-full text-[10px] uppercase tracking-wider font-bold {selectedTag === tag ? 'text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}" style={selectedTag === tag ? `background-color: var(--brand)` : ''}>#{tag}</button>
-			{/each}
-		</div>
-	{/if}
-
 	<main class="flex-1 p-6 overflow-y-auto grid gap-8 items-start content-start" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
 		{#each groups as group}
 			<section class="flex flex-col min-h-[40px]" ondragover={(e) => e.preventDefault()} ondrop={() => handleDrop(group, getGroupBookmarks(group).length)}>
 				<div class="flex items-center justify-between mb-3 px-1">
                     <div class="flex items-center gap-3">
-                        {#if editingGroupId === group}
-                            <input bind:value={groupRenameValue} class="bg-transparent border-b border-blue-500 outline-none text-xs font-bold uppercase" autofocus onblur={() => { groups = groups.map(g => g === group ? groupRenameValue : g); bookmarks = bookmarks.map(b => b.group === group ? {...b, group: groupRenameValue} : b); editingGroupId = null; syncData(); }} />
-                        {:else}
-                            <button onclick={() => toggleCollapse(group)} class="flex items-center gap-2 group/title">
-                                <ChevronRight size={12} class="text-slate-400 transition-transform duration-200 {collapsedGroups[group] ? '' : 'rotate-90'}" />
-                                <h2 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover/title:text-slate-600 transition-colors">{group}</h2>
+                        <button onclick={() => toggleCollapse(group)} class="flex items-center gap-2 group/title">
+                            <ChevronRight size={12} class="text-slate-400 transition-transform duration-200 {collapsedGroups[group] ? '' : 'rotate-90'}" />
+                            <h2 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover/title:text-slate-600 transition-colors">{group}</h2>
+                        </button>
+                        
+                        <button onclick={() => toggleSort(group)} class="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg">
+                            {#if groupSortDirections[group] === 'asc'} <SortAsc size={14} class="text-blue-500" />
+                            {:else if groupSortDirections[group] === 'desc'} <SortDesc size={14} class="text-blue-500" />
+                            {:else} <SortAsc size={14} class="text-slate-300" /> {/if}
+                        </button>
+
+                        {#if isEditMode}
+                            <button onclick={() => widgetEditTarget = group} class="text-slate-300 hover:text-blue-500 transition-colors">
+                                <Code size={13} />
                             </button>
-                            
-                            <button onclick={() => toggleSort(group)} class="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg">
-                                {#if groupSortDirections[group] === 'asc'} <SortAsc size={14} class="text-blue-500" />
-                                {:else if groupSortDirections[group] === 'desc'} <SortDesc size={14} class="text-blue-500" />
-                                {:else} <SortAsc size={14} class="text-slate-300" /> {/if}
-                            </button>
-                            {#if isEditMode}
-                                <button onclick={() => {editingGroupId = group; groupRenameValue = group;}} class="text-slate-400 hover:text-blue-500"><Edit2 size={12}/></button>
-                            {/if}
                         {/if}
                     </div>
 				</div>
@@ -328,35 +278,51 @@
                             </div>
 							<div class="flex-1 truncate">
                                 <div class="text-[13px] font-medium truncate text-slate-700 dark:text-slate-200 leading-tight">{b.title}</div>
-                                {#if !compactMode && (b.tags?.length || b.notes)}
-                                    <div class="flex gap-2 items-center mt-1">
-                                        {#each b.tags || [] as t} <span class="text-[9px] font-bold text-blue-500 uppercase tracking-tighter">#{t}</span> {/each}
-                                        {#if b.notes} <span class="text-[10px] italic text-slate-400 truncate font-light">{b.notes}</span> {/if}
-                                    </div>
-                                {/if}
                             </div>
 						</div>
 					{/each}
+
+                    {#if groupWidgets[group]}
+                        <div class="p-4 bg-slate-50/50 dark:bg-slate-800/20 border-t dark:border-slate-800 overflow-hidden">
+                            {@html groupWidgets[group]}
+                        </div>
+                    {/if}
 				</div>
 			</section>
 		{/each}
 	</main>
+
+    {#if widgetEditTarget}
+        <div class="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-8 space-y-4 shadow-2xl">
+                <div class="flex justify-between items-center border-b dark:border-slate-800 pb-4">
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Widget: {widgetEditTarget}</h3>
+                    <button onclick={() => widgetEditTarget = null}><X size={20}/></button>
+                </div>
+                <textarea 
+                    bind:value={groupWidgets[widgetEditTarget]} 
+                    placeholder="Paste HTML/Inline CSS here..." 
+                    class="w-full h-64 bg-slate-100 dark:bg-slate-800 p-4 rounded-2xl text-xs font-mono outline-none resize-none"
+                ></textarea>
+                <button onclick={() => { syncData(); widgetEditTarget = null; }} class="w-full py-4 rounded-2xl font-bold text-white uppercase tracking-widest shadow-lg" style="background-color: var(--brand)">
+                    Save Widget
+                </button>
+            </div>
+        </div>
+    {/if}
 
 	{#if isSettingsOpen}
 		<div class="fixed inset-0 z-[100] flex justify-end">
 			<div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick={() => isSettingsOpen = false}></div>
 			<div class="relative w-80 bg-white dark:bg-slate-900 h-full p-8 shadow-2xl border-l dark:border-slate-800 overflow-y-auto space-y-8">
 				<div class="flex justify-between items-center border-b dark:border-slate-800 pb-4">
-					<h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">System Settings</h3>
+					<h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Settings</h3>
 					<button onclick={() => isSettingsOpen = false}><X/></button>
 				</div>
-                <div class="space-y-4">
-                    <label class="text-[10px] font-bold uppercase text-slate-400 block">Accent Color</label>
-                    <div class="flex gap-3">
-                        {#each Object.keys(themeMap) as color}
-                            <button onclick={() => { accentColor = color; syncData(); }} class="w-7 h-7 rounded-full ring-2 ring-offset-2 dark:ring-offset-slate-900 {accentColor === color ? 'ring-slate-400' : 'ring-transparent'}" style="background-color: {themeMap[color]}"></button>
-                        {/each}
-                    </div>
+                
+                <div class="space-y-4 pt-4 border-t dark:border-slate-800">
+                    <label class="text-[10px] font-bold uppercase text-slate-400 block">Username</label>
+                    <input bind:value={username} onblur={syncData} placeholder="Enter your name..." class="w-full bg-slate-100 dark:bg-slate-800 p-3 rounded-xl text-xs outline-none" />
                 </div>
 
                 <div class="space-y-4 pt-4 border-t dark:border-slate-800">
@@ -365,43 +331,21 @@
                         <input bind:value={newGroupName} placeholder="New Group Name..." class="flex-1 bg-slate-100 dark:bg-slate-800 p-3 rounded-xl text-xs outline-none" onkeydown={(e) => {if(e.key === 'Enter' && newGroupName) { groups = [...groups, newGroupName]; newGroupName = ""; syncData(); }}} />
                         <button onclick={() => { if(newGroupName) { groups = [...groups, newGroupName]; newGroupName = ""; syncData(); }}} class="p-3 bg-blue-500 text-white rounded-xl"><Plus size={16}/></button>
                     </div>
-                    <div class="space-y-1.5 max-h-56 overflow-y-auto no-scrollbar">
-                        {#each groups as g}
-                            <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl group/g">
-                                <span class="text-xs font-medium">{g}</span>
-                                <button onclick={() => { if(confirm(`Delete "${g}"?`)) { groups = groups.filter(gr => gr !== g); bookmarks = bookmarks.filter(b => b.group !== g); syncData(); }}} class="text-slate-300 hover:text-red-500 opacity-0 group-hover/g:opacity-100"><Trash2 size={14}/></button>
-                            </div>
-                        {/each}
-                    </div>
                 </div>
-
-                <div class="pt-4 border-t dark:border-slate-800 space-y-2">
-                    <button onclick={() => {
-                        const blob = new Blob([JSON.stringify({ groups, bookmarks, sorts: groupSortDirections, collapsed: collapsedGroups, appTitle }, null, 2)], { type: 'application/json' });
-                        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'backup.json'; a.click();
-                    }} class="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-xs hover:bg-slate-100 dark:hover:bg-slate-700 font-medium transition-colors">
-                        <span>Export Backup (JSON)</span> <Download size={16}/>
-                    </button>
-                    <label class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-xs cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 font-medium transition-colors">
-                        <span>Import JSON</span> <Upload size={16}/>
-                        <input type="file" accept=".json" class="hidden" onchange={handleJSONImport}/>
-                    </label>
-                    <label class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-xs cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 font-medium transition-colors">
-                        <span>Import CSV</span> <FileSpreadsheet size={16}/>
-                        <input type="file" accept=".csv" class="hidden" onchange={handleCSVImport}/>
-                    </label>
-                </div>
+                <button onclick={() => {
+                    const blob = new Blob([JSON.stringify({ groups, bookmarks, sorts: groupSortDirections, collapsed: collapsedGroups, widgets: groupWidgets, username }, null, 2)], { type: 'application/json' });
+                    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'backup.json'; a.click();
+                }} class="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-xs hover:bg-slate-100 font-medium">
+                    <span>Export Backup</span> <Download size={16}/>
+                </button>
 			</div>
 		</div>
 	{/if}
 
     {#if contextMenu.show}
 		<div class="fixed z-[200] bg-white dark:bg-slate-900 shadow-2xl rounded-2xl border dark:border-slate-800 py-1.5 w-48 text-[11px]" style="top: {contextMenu.y}px; left: {contextMenu.x}px;" onclick={(e) => e.stopPropagation()}>
-			<button onclick={() => openEditModal(contextMenu.target!)} class="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-3 font-medium transition-colors"><Edit2 size={14} class="text-blue-500"/> Edit Properties</button>
-			<button onclick={() => { navigator.clipboard.writeText(contextMenu.target!.url); contextMenu.show = false; }} class="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-3 font-medium transition-colors"><Copy size={14} class="text-emerald-500"/> Copy Link</button>
-            <button onclick={() => { const b = contextMenu.target!; bookmarks = [...bookmarks, {...b, id: crypto.randomUUID(), title: b.title + " (Copy)"}]; syncData(); contextMenu.show = false; }} class="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-3 font-medium transition-colors"><CopyPlus size={14} class="text-purple-500"/> Duplicate</button>
-            <div class="h-px bg-slate-100 dark:bg-slate-800 my-1.5 mx-2"></div>
-			<button onclick={() => { bookmarks = bookmarks.filter(b => b.id !== contextMenu.target!.id); syncData(); contextMenu.show = false; }} class="w-full text-left px-4 py-2.5 hover:bg-red-50 text-red-500 flex items-center gap-3 font-medium transition-colors"><Trash2 size={14}/> Delete</button>
+			<button onclick={() => openEditModal(contextMenu.target!)} class="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-3 transition-colors"><Edit2 size={14} class="text-blue-500"/> Edit Properties</button>
+			<button onclick={() => { bookmarks = bookmarks.filter(b => b.id !== contextMenu.target!.id); syncData(); contextMenu.show = false; }} class="w-full text-left px-4 py-2.5 hover:bg-red-50 text-red-500 flex items-center gap-3 transition-colors"><Trash2 size={14}/> Delete</button>
 		</div>
 	{/if}
 
@@ -410,14 +354,11 @@
 			<div class="bg-white dark:bg-slate-900 w-full max-sm rounded-[2.5rem] p-10 space-y-4 shadow-2xl overflow-y-auto max-h-[90vh]">
                 <div class="flex justify-between border-b dark:border-slate-800 pb-4">
 				    <h3 class="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Properties</h3>
-                    <button onclick={() => isEditModalOpen = false} class="text-slate-400 hover:text-slate-800 transition-colors"><X size={20}/></button>
+                    <button onclick={() => isEditModalOpen = false}><X size={20}/></button>
                 </div>
-				<input bind:value={tempTitle} placeholder="Title" class="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-sm outline-none font-medium transition-all focus:ring-2 focus:ring-blue-500/20" />
-				<input bind:value={tempUrl} placeholder="URL" class="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-sm outline-none font-medium transition-all focus:ring-2 focus:ring-blue-500/20" />
-                <input bind:value={tempTags} placeholder="Tags (comma separated)" class="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-sm outline-none font-medium transition-all focus:ring-2 focus:ring-blue-500/20" />
-                <textarea bind:value={tempNotes} placeholder="Notes..." class="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-sm h-24 outline-none resize-none font-medium transition-all focus:ring-2 focus:ring-blue-500/20"></textarea>
-                <textarea bind:value={tempIcon} placeholder="SVG string or Icon URL" class="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-[10px] font-mono h-20 outline-none resize-none transition-all focus:ring-2 focus:ring-blue-500/20"></textarea>
-				<button onclick={savePopupChanges} class="w-full py-4 rounded-2xl font-black text-white uppercase tracking-[0.2em] shadow-xl transition-all hover:opacity-90 active:scale-95" style="background-color: var(--brand)">Update</button>
+				<input bind:value={tempTitle} placeholder="Title" class="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-sm outline-none" />
+				<input bind:value={tempUrl} placeholder="URL" class="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-sm outline-none" />
+				<button onclick={savePopupChanges} class="w-full py-4 rounded-2xl font-black text-white uppercase tracking-[0.2em] shadow-xl" style="background-color: var(--brand)">Update</button>
 			</div>
 		</div>
 	{/if}
