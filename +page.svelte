@@ -417,6 +417,30 @@
 		syncData();
 	}
 
+	function renderWidget(id: string, content: string) {
+		const container = document.getElementById(`widget-${id}`);
+		if (!container) return;
+		container.innerHTML = '';
+		const temp = document.createElement('div');
+		temp.innerHTML = content;
+		const scripts = temp.querySelectorAll('script');
+		container.appendChild(temp);
+		scripts.forEach(oldScript => {
+			const newScript = document.createElement('script');
+			Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+			newScript.textContent = oldScript.textContent;
+			oldScript.parentNode?.replaceChild(newScript, oldScript);
+		});
+	}
+
+	$effect(() => {
+		widgets.forEach(w => {
+			if (w.type === 'embed' && !w.collapsed) {
+				setTimeout(() => renderWidget(w.id, w.content), 100);
+			}
+		});
+	});
+
 	function deleteWidget(id: string) {
 		widgets = widgets.filter(w => w.id !== id);
 		syncData();
@@ -681,6 +705,8 @@
 					<div class="p-4" id="widget-{widget.id}">
 						{#if widget.type === 'notes'}
 							<textarea value={widget.content.match(/placeholder="([^"]*)"/)?.[0] ? '' : widget.content} oninput={(e) => updateWidgetContent(widget.id, e.currentTarget.value)} placeholder="Your notes here..." class="w-full h-[200px] p-3 border border-slate-200 dark:border-slate-700 rounded-xl outline-none resize-vertical bg-transparent"></textarea>
+						{:else if widget.type === 'embed'}
+							<!-- Rendered by renderWidget function -->
 						{:else}
 							{@html widget.content}
 						{/if}
