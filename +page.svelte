@@ -515,7 +515,14 @@
                                     selectedBookmarks = newSet;
                                 } else if (isEditMode) openEditModal(b); else window.open(b.url.startsWith('http') ? b.url : `https://${b.url}`);
                             }}
-							oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, show: true, target: b }; }}
+							oncontextmenu={(e) => { 
+                                e.preventDefault(); 
+                                const menuHeight = 180;
+                                const menuWidth = 192;
+                                const x = e.clientX + menuWidth > window.innerWidth ? window.innerWidth - menuWidth : e.clientX;
+                                const y = e.clientY + menuHeight > window.innerHeight ? window.innerHeight - menuHeight : e.clientY;
+                                contextMenu = { x, y, show: true, target: b }; 
+                            }}
 						>
 							<GripVertical size={14} class="text-slate-300 {isEditMode ? 'opacity-100' : 'opacity-0'} shrink-0" />
                             <div class="w-4 h-4 flex items-center justify-center shrink-0">
