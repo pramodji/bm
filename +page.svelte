@@ -18,7 +18,6 @@
 	let bookmarks = $state<Bookmark[]>([]);
 	let groups = $state<string[]>([]);
 	let appTitle = $state("Dashboard");
-    let currentUserName = $state("User"); 
     let syncStatus = $state<"loading" | "synced" | "offline">("loading");
     let time = $state(new Date());
     
@@ -63,7 +62,6 @@
         const timer = setInterval(() => { time = new Date(); }, 1000);
 		isDarkMode = localStorage.getItem('mk_dark') === 'true';
 		accentColor = localStorage.getItem('mk_accent') || "blue";
-        currentUserName = localStorage.getItem('mk_username') || "User";
 
 		await loadData();
         window.addEventListener('click', () => { contextMenu.show = false; });
@@ -71,7 +69,7 @@
 	});
 
     $effect(() => {
-        document.title = `${currentUserName}'s ${appTitle}`; 
+        document.title = appTitle;
         if (isDarkMode) document.documentElement.classList.add('dark');
         else document.documentElement.classList.remove('dark');
     });
@@ -109,7 +107,6 @@
         localStorage.setItem('mk_widgets', JSON.stringify(groupWidgets));
         localStorage.setItem('mk_columns', JSON.stringify(groupColumns));
         localStorage.setItem('mk_accent', accentColor);
-        localStorage.setItem('mk_username', currentUserName);
         try {
             const res = await fetch(API_URL, {
                 method: 'POST',
@@ -336,6 +333,8 @@
     }
 
 	// --- 5. DERIVED ---
+    let allTags = $derived(Array.from(new Set(bookmarks.flatMap(b => b.tags || []))).sort());
+
     let columnGroups = $derived.by(() => {
         const cols: Record<number, string[]> = {};
         groups.forEach(g => {
@@ -388,7 +387,7 @@
 	<header class="h-14 bg-white dark:bg-slate-900 border-b dark:border-slate-800 flex items-center px-4 justify-between shrink-0 z-20 shadow-sm">
 		<div class="flex items-center gap-4 flex-1">
 			<div class="flex items-center gap-2 font-bold uppercase tracking-tighter text-sm" style="color: var(--brand)">
-				<BookmarkIcon size={20} fill="currentColor" fill-opacity="0.2" /> <span class="font-bold">{currentUserName}'s Dashboard</span>
+				<BookmarkIcon size={20} fill="currentColor" fill-opacity="0.2" /> <span class="font-bold">Bookmark Manager</span>
 			</div>
             
             <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all
@@ -400,6 +399,9 @@
             <button onclick={() => isEditMode = !isEditMode} class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all {isEditMode ? 'bg-amber-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}">
                 {#if isEditMode}<Unlock size={14}/> Unlock{:else}<Lock size={14}/> Lock{/if}
             </button>
+            <button onclick={() => showTags = !showTags} class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all {showTags ? 'bg-blue-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}">
+                {#if showTags}<EyeOff size={14}/>{:else}<LayoutList size={14}/>{/if} Tags
+            </button>
 		</div>
 
 		<div class="flex items-center gap-2 flex-[2] justify-center">
@@ -408,6 +410,14 @@
                     <Search class="absolute left-4 top-3 text-slate-400" size={16} />
                     <input bind:value={searchQuery} placeholder="Search bookmarks..." class="w-full pl-12 pr-4 py-3 text-sm bg-slate-100 dark:bg-slate-800 border-none rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
+                {#if allTags.length > 0}
+                    <select bind:value={selectedTag} class="px-3 py-3 text-xs bg-slate-100 dark:bg-slate-800 border-none rounded-2xl outline-none">
+                        <option value={null}>All Tags</option>
+                        {#each allTags as tag}
+                            <option value={tag}>{tag}</option>
+                        {/each}
+                    </select>
+                {/if}
             </div>
         </div>
 
@@ -415,9 +425,6 @@
             <div class="text-xl font-mono font-medium text-slate-700 dark:text-slate-200 tabular-nums uppercase">
                 {time.toLocaleTimeString([], { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
-            <button onclick={() => isDarkMode = !isDarkMode} class="p-2 text-slate-400 hover:text-slate-600">
-                {#if isDarkMode}<Sun size={20}/>{:else}<Moon size={20}/>{/if}
-            </button>
             <button onclick={() => isSettingsOpen = true} class="p-2 text-slate-400 hover:text-slate-600"><Settings size={20}/></button>
 		</div>
 	</header>
@@ -462,7 +469,7 @@
                     </div>
 				</div>
 
-				<div class="bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 overflow-hidden divide-y dark:divide-slate-800 transition-all duration-300 {collapsedGroups[group] ? 'max-h-0 opacity-0 invisible' : 'max-h-[2000px] opacity-100 visible'}">
+				<div class="bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 overflow-hidden divide-y dark:divide-slate-800 transition-all duration-300 hover:ring-2 hover:ring-blue-300 dark:hover:ring-blue-700 {collapsedGroups[group] ? 'max-h-0 opacity-0 invisible' : 'max-h-[2000px] opacity-100 visible'}">
                     {#if isEditMode}
 						<div class="p-3 bg-slate-50 dark:bg-slate-800/50 flex gap-2">
 							<input bind:value={columnInputs[group]} placeholder="Quick add URL..." class="flex-1 text-sm p-3 bg-white dark:bg-slate-900 rounded-xl border dark:border-slate-700 outline-none" onkeydown={(e) => e.key === 'Enter' && addBookmarkToGroup(group)} />
@@ -541,11 +548,6 @@
 					<h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Settings</h3>
 					<button onclick={() => isSettingsOpen = false}><X/></button>
 				</div>
-
-                <div class="space-y-4">
-                    <label class="text-[10px] font-bold uppercase text-slate-400 block">Username</label>
-                    <input bind:value={currentUserName} onchange={() => syncData()} placeholder="Enter your name..." class="w-full bg-slate-100 dark:bg-slate-800 p-3 rounded-xl text-xs outline-none" />
-                </div>
 
                 <div class="space-y-4 pt-4 border-t dark:border-slate-800">
                     <label class="text-[10px] font-bold uppercase text-slate-400 block">Manage Groups</label>
