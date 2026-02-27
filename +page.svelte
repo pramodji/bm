@@ -15,8 +15,13 @@
 		tags?: string[]; notes?: string; icon?: string; 
 	}
 
+	interface Widget {
+		id: string; title: string; type: string; content: string; column: number; collapsed: boolean;
+	}
+
 	let bookmarks = $state<Bookmark[]>([]);
 	let groups = $state<string[]>([]);
+	let widgets = $state<Widget[]>([]);
 	let appTitle = $state("Dashboard");
     let syncStatus = $state<"loading" | "synced" | "offline">("loading");
     let time = $state(new Date());
@@ -47,6 +52,12 @@
     let selectedBookmarks = $state<Set<string>>(new Set());
     let bulkIconModal = $state(false);
     let bulkIcon = $state("");
+	let isWidgetModalOpen = $state(false);
+	let widgetType = $state("");
+	let widgetTitle = $state("");
+	let widgetContent = $state("");
+	let widgetColumn = $state(1);
+	let editWidgetId = $state<string | null>(null);
 
 	let isEditModalOpen = $state(false);
 	let activeBookmark = $state<Bookmark | null>(null);
@@ -56,6 +67,15 @@
 
 	const themeMap: Record<string, string> = {
 		blue: "#2563eb", emerald: "#10b981", purple: "#8b5cf6", rose: "#f43f5e", amber: "#f59e0b"
+	};
+
+	const widgetTemplates: Record<string, string> = {
+		'stock': '<iframe src="https://www.tradingview.com/widgetembed/?symbol=NASDAQ:AAPL" style="width:100%;height:300px;border:none;"></iframe>',
+		'weather': '<iframe src="https://wttr.in/?format=v2" style="width:100%;height:200px;border:none;background:white;"></iframe>',
+		'calendar': '<iframe src="https://calendar.google.com/calendar/embed" style="width:100%;height:400px;border:none;"></iframe>',
+		'notes': '<textarea placeholder="Your notes here..." style="width:100%;height:200px;padding:12px;border:1px solid #e2e8f0;border-radius:12px;outline:none;resize:vertical;"></textarea>',
+		'tasks': '<div style="padding:12px;"><input type="text" placeholder="Add task..." style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:8px;"><div id="tasks"></div></div>',
+		'embed': '<div style="padding:12px;text-align:center;color:#94a3b8;">Paste your embed code in settings</div>'
 	};
 
     const isSVG = (str: string) => str?.trim().startsWith('<svg') || str?.trim().startsWith('<i ');
@@ -90,6 +110,7 @@
             collapsedGroups = data.collapsed || {};
             groupWidgets = data.widgets || {};
             groupColumns = data.columns || {};
+			widgets = data.standaloneWidgets || [];
             syncStatus = "synced";
         } catch (e) {
             syncStatus = "offline";
@@ -98,6 +119,7 @@
             collapsedGroups = JSON.parse(localStorage.getItem('mk_collapsed') || '{}');
             groupWidgets = JSON.parse(localStorage.getItem('mk_widgets') || '{}');
             groupColumns = JSON.parse(localStorage.getItem('mk_columns') || '{}');
+			widgets = JSON.parse(localStorage.getItem('mk_standaloneWidgets') || '[]');
             bookmarks = JSON.parse(localStorage.getItem('mk_bookmarks') || '[]').sort((a: any, b: any) => a.position - b.position);
         }
 	}
@@ -109,12 +131,13 @@
         localStorage.setItem('mk_collapsed', JSON.stringify(collapsedGroups));
         localStorage.setItem('mk_widgets', JSON.stringify(groupWidgets));
         localStorage.setItem('mk_columns', JSON.stringify(groupColumns));
+		localStorage.setItem('mk_standaloneWidgets', JSON.stringify(widgets));
         localStorage.setItem('mk_accent', accentColor);
         try {
             const res = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bookmarks, groups, sorts: groupSortDirections, collapsed: collapsedGroups, widgets: groupWidgets, columns: groupColumns, appTitle })
+                body: JSON.stringify({ bookmarks, groups, sorts: groupSortDirections, collapsed: collapsedGroups, widgets: groupWidgets, columns: groupColumns, appTitle, standaloneWidgets: widgets })
             });
             syncStatus = res.ok ? "synced" : "offline";
         } catch (e) { syncStatus = "offline"; }
@@ -354,6 +377,56 @@
         syncData();
     }
 
+	function addWidget() {
+		if (!widgetTitle || !widgetType) return;
+		const newWidget: Widget = {
+			id: crypto.randomUUID(),
+			title: widgetTitle,
+			type: widgetType,
+			content: widgetContent || widgetTemplates[widgetType] || '',
+			column: widgetColumn,
+			collapsed: false
+		};
+		widgets = [...widgets, newWidget];
+		widgetTitle = ""; widgetContent = ""; widgetType = ""; widgetColumn = 1;
+		isWidgetModalOpen = false;
+		syncData();
+	}
+
+	function updateWidgetContent(id: string, newContent: string) {
+		widgets = widgets.map(w => w.id === id ? {...w, content: newContent} : w);
+		syncData();
+	}
+
+	function openWidgetSettings(id: string) {
+		const widget = widgets.find(w => w.id === id);
+		if (!widget) return;
+		editWidgetId = id;
+		widgetTitle = widget.title;
+		widgetType = widget.type;
+		widgetContent = widget.content;
+		widgetColumn = widget.column;
+		isWidgetModalOpen = true;
+	}
+
+	function saveWidgetChanges() {
+		if (!editWidgetId) return addWidget();
+		widgets = widgets.map(w => w.id === editWidgetId ? {...w, title: widgetTitle, content: widgetContent, column: widgetColumn} : w);
+		widgetTitle = ""; widgetContent = ""; widgetType = ""; widgetColumn = 1; editWidgetId = null;
+		isWidgetModalOpen = false;
+		syncData();
+	}
+
+	function deleteWidget(id: string) {
+		widgets = widgets.filter(w => w.id !== id);
+		syncData();
+	}
+
+	function toggleWidgetCollapse(id: string) {
+		widgets = widgets.map(w => w.id === id ? {...w, collapsed: !w.collapsed} : w);
+		syncData();
+	}
+
 	// --- 5. DERIVED ---
     let allTags = $derived(Array.from(new Set(bookmarks.flatMap(b => b.tags || []))).sort());
 
@@ -366,6 +439,15 @@
         });
         return cols;
     });
+
+	let columnWidgets = $derived.by(() => {
+		const cols: Record<number, Widget[]> = {};
+		widgets.forEach(w => {
+			if (!cols[w.column]) cols[w.column] = [];
+			cols[w.column].push(w);
+		});
+		return cols;
+	});
 
     let usedColumns = $derived(Object.keys(columnGroups).map(Number).sort((a, b) => a - b));
 
@@ -576,6 +658,36 @@
                 {/if}
 			</section>
 			{/each}
+
+			{#each (columnWidgets[Number(colNum)] || []) as widget}
+			<section class="flex flex-col">
+				<div class="flex items-center justify-between mb-3 px-1">
+					<button onclick={() => toggleWidgetCollapse(widget.id)} class="flex items-center gap-2 group/title">
+						<ChevronRight size={12} class="text-slate-400 transition-transform duration-200 {widget.collapsed ? '' : 'rotate-90'}" />
+						<h2 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover/title:text-slate-600 transition-colors">{widget.title}</h2>
+					</button>
+					{#if isEditMode}
+						<div class="flex items-center gap-2">
+							<button onclick={() => openWidgetSettings(widget.id)} class="text-slate-300 hover:text-blue-500 transition-colors">
+								<Settings size={13} />
+							</button>
+							<button onclick={() => deleteWidget(widget.id)} class="text-slate-300 hover:text-red-500 transition-colors">
+								<Trash2 size={13} />
+							</button>
+						</div>
+					{/if}
+				</div>
+				<div class="bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 overflow-hidden transition-all duration-300 {widget.collapsed ? 'max-h-0 opacity-0 invisible' : 'max-h-[2000px] opacity-100 visible'}">
+					<div class="p-4" id="widget-{widget.id}">
+						{#if widget.type === 'notes'}
+							<textarea value={widget.content.match(/placeholder="([^"]*)"/)?.[0] ? '' : widget.content} oninput={(e) => updateWidgetContent(widget.id, e.currentTarget.value)} placeholder="Your notes here..." class="w-full h-[200px] p-3 border border-slate-200 dark:border-slate-700 rounded-xl outline-none resize-vertical bg-transparent"></textarea>
+						{:else}
+							{@html widget.content}
+						{/if}
+					</div>
+				</div>
+			</section>
+			{/each}
 			</div>
 		{/each}
 	</main>
@@ -634,6 +746,23 @@
                             {/if}
                         {/each}
                     </div>
+                </div>
+
+				<div class="space-y-4 pt-4 border-t dark:border-slate-800">
+                    <label class="text-[10px] font-bold uppercase text-slate-400 block">Manage Widgets</label>
+					<button onclick={() => isWidgetModalOpen = true} class="w-full flex items-center justify-between p-4 bg-blue-500 text-white rounded-2xl text-xs font-medium hover:bg-blue-600">
+                        <span>Add Widget</span> <Plus size={16}/>
+                    </button>
+					<div class="space-y-2 max-h-48 overflow-y-auto">
+						{#each widgets as widget}
+							<div class="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg group/item">
+								<span class="flex-1 text-xs px-2">{widget.title}</span>
+								<span class="text-[9px] text-slate-400">Col {widget.column}</span>
+								<button onclick={() => openWidgetSettings(widget.id)} class="p-1 text-slate-400 hover:text-blue-500 opacity-0 group-hover/item:opacity-100 transition-opacity"><Settings size={14}/></button>
+								<button onclick={() => deleteWidget(widget.id)} class="p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity"><Trash2 size={14}/></button>
+							</div>
+						{/each}
+					</div>
                 </div>
 
                 <div class="space-y-4 pt-4 border-t dark:border-slate-800">
@@ -728,6 +857,50 @@
                     </div>
                 </div>
 				<button onclick={applyBulkIcon} class="w-full py-4 rounded-2xl font-black text-white uppercase tracking-[0.2em] shadow-xl mt-4" style="background-color: var(--brand)">Apply to Selected</button>
+			</div>
+		</div>
+	{/if}
+
+	{#if isWidgetModalOpen}
+		<div class="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+			<div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-10 space-y-4 shadow-2xl">
+                <div class="flex justify-between border-b dark:border-slate-800 pb-4">
+				    <h3 class="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">{editWidgetId ? 'Edit' : 'Add'} Widget</h3>
+                    <button onclick={() => { isWidgetModalOpen = false; editWidgetId = null; widgetTitle = ""; widgetContent = ""; widgetType = ""; }}><X size={20}/></button>
+                </div>
+				<div class="space-y-1">
+                    <label class="text-[9px] font-bold uppercase text-slate-400 ml-2">Title</label>
+                    <input bind:value={widgetTitle} placeholder="Widget title..." class="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl text-[13px] outline-none" />
+                </div>
+				{#if !editWidgetId}
+				<div class="space-y-1">
+                    <label class="text-[9px] font-bold uppercase text-slate-400 ml-2">Type</label>
+                    <select bind:value={widgetType} class="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl text-[13px] outline-none">
+						<option value="">Select type...</option>
+						<option value="stock">Stock Quote</option>
+						<option value="weather">Weather</option>
+						<option value="calendar">Calendar</option>
+						<option value="notes">Notes</option>
+						<option value="tasks">Tasks</option>
+						<option value="embed">Custom Embed</option>
+					</select>
+                </div>
+				{/if}
+				<div class="space-y-1">
+                    <label class="text-[9px] font-bold uppercase text-slate-400 ml-2">Column</label>
+                    <select bind:value={widgetColumn} class="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl text-[13px] outline-none">
+						{#each Array.from({length: 5}, (_, i) => i + 1) as col}
+                            <option value={col}>Column {col}</option>
+                        {/each}
+					</select>
+                </div>
+				{#if widgetType === 'embed' || editWidgetId}
+				<div class="space-y-1">
+                    <label class="text-[9px] font-bold uppercase text-slate-400 ml-2">Content</label>
+                    <textarea bind:value={widgetContent} placeholder="Paste iframe or embed code..." class="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl text-[13px] outline-none resize-none" rows="4"></textarea>
+                </div>
+				{/if}
+				<button onclick={saveWidgetChanges} class="w-full py-4 rounded-2xl font-black text-white uppercase tracking-[0.2em] shadow-xl mt-4" style="background-color: var(--brand)">{editWidgetId ? 'Update' : 'Add'} Widget</button>
 			</div>
 		</div>
 	{/if}
