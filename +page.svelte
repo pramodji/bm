@@ -44,6 +44,9 @@
     let draggedSettingsGroup = $state<string | null>(null);
     let addGroupAfter = $state<string | null>(null);
     let newSubGroupName = $state<Record<string, string>>({});
+    let selectedBookmarks = $state<Set<string>>(new Set());
+    let bulkIconModal = $state(false);
+    let bulkIcon = $state("");
 
 	let isEditModalOpen = $state(false);
 	let activeBookmark = $state<Bookmark | null>(null);
@@ -238,6 +241,23 @@
         reader.readAsDataURL(file);
     }
 
+    function handleBulkIconUpload(file: File) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            bulkIcon = ev.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function applyBulkIcon() {
+        if (!bulkIcon || selectedBookmarks.size === 0) return;
+        bookmarks = bookmarks.map(b => selectedBookmarks.has(b.id) ? {...b, icon: bulkIcon} : b);
+        selectedBookmarks.clear();
+        bulkIconModal = false;
+        bulkIcon = "";
+        syncData();
+    }
+
     function duplicateBookmark(bookmark: Bookmark) {
         const newBM = { ...bookmark, id: crypto.randomUUID(), position: bookmarks.length };
         bookmarks = [...bookmarks, newBM];
@@ -402,6 +422,11 @@
             <button onclick={() => showTags = !showTags} class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all {showTags ? 'bg-blue-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}">
                 {#if showTags}<EyeOff size={14}/>{:else}<LayoutList size={14}/>{/if} Tags
             </button>
+            {#if selectedBookmarks.size > 0}
+                <button onclick={() => bulkIconModal = true} class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-green-500 text-white shadow-lg">
+                    <Upload size={14}/> Icon ({selectedBookmarks.size})
+                </button>
+            {/if}
 		</div>
 
 		<div class="flex items-center gap-2 flex-[2] justify-center">
@@ -479,11 +504,17 @@
 
                     {#each getGroupBookmarks(group) as b, i (b.id)}
 						<div 
-							class="bookmark-row group flex items-center gap-2.5 {compactMode ? 'py-1.5 px-3' : 'p-3.5'} hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer" 
+							class="bookmark-row group flex items-center gap-2.5 {compactMode ? 'py-1.5 px-3' : 'p-3.5'} hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer {selectedBookmarks.has(b.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}" 
 							draggable={isEditMode} 
                             ondragstart={() => (draggedId = b.id)} 
                             ondrop={(e) => { e.stopPropagation(); handleDrop(group, i); }}
-							onclick={() => isEditMode ? openEditModal(b) : window.open(b.url.startsWith('http') ? b.url : `https://${b.url}`)}
+							onclick={(e) => {
+                                if (e.ctrlKey || e.metaKey) {
+                                    const newSet = new Set(selectedBookmarks);
+                                    if (newSet.has(b.id)) newSet.delete(b.id); else newSet.add(b.id);
+                                    selectedBookmarks = newSet;
+                                } else if (isEditMode) openEditModal(b); else window.open(b.url.startsWith('http') ? b.url : `https://${b.url}`);
+                            }}
 							oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, show: true, target: b }; }}
 						>
 							<GripVertical size={14} class="text-slate-300 {isEditMode ? 'opacity-100' : 'opacity-0'} shrink-0" />
@@ -666,6 +697,28 @@
                     <textarea bind:value={tempNotes} placeholder="Add notes..." class="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl text-[13px] outline-none resize-none" rows="3"></textarea>
                 </div>
 				<button onclick={savePopupChanges} class="w-full py-4 rounded-2xl font-black text-white uppercase tracking-[0.2em] shadow-xl mt-4" style="background-color: var(--brand)">Update</button>
+			</div>
+		</div>
+	{/if}
+
+    {#if bulkIconModal}
+		<div class="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+			<div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-10 space-y-4 shadow-2xl">
+                <div class="flex justify-between border-b dark:border-slate-800 pb-4">
+				    <h3 class="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Bulk Icon Change</h3>
+                    <button onclick={() => { bulkIconModal = false; bulkIcon = ""; }}><X size={20}/></button>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[9px] font-bold uppercase text-slate-400 ml-2">Icon for {selectedBookmarks.size} bookmarks</label>
+                    <div class="flex gap-2">
+                        <input bind:value={bulkIcon} placeholder="SVG code or URL" class="flex-1 bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl text-[13px] outline-none" />
+                        <label class="px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-2xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center">
+                            <Upload size={16} />
+                            <input type="file" accept="image/*" class="hidden" onchange={(e) => e.currentTarget.files && handleBulkIconUpload(e.currentTarget.files[0])} />
+                        </label>
+                    </div>
+                </div>
+				<button onclick={applyBulkIcon} class="w-full py-4 rounded-2xl font-black text-white uppercase tracking-[0.2em] shadow-xl mt-4" style="background-color: var(--brand)">Apply to Selected</button>
 			</div>
 		</div>
 	{/if}
